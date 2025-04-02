@@ -1,5 +1,5 @@
 const SkillExchange = require('../models/skillExchangeSchema');
-const { findMatches } = require('../utils/matchingAlgorithm');
+const { findMatches, calculateMatchScore } = require('../utils/matchingAlgorithm');
 
 
 exports.createExchange = async (req, res) => {
@@ -236,9 +236,11 @@ exports.sendExchangeRequest = async (req, res) => {
             });
         }
 
+        const match_score = calculateMatchScore(userExchange, targetExchange);
+
         targetExchange.matches.push({
             user: req.user.id,
-            match_score: 0, 
+            match_score: match_score,
             exchange_request_status: 'pending'
         });
 
@@ -246,7 +248,8 @@ exports.sendExchangeRequest = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: 'Exchange request sent successfully'
+            message: 'Exchange request sent successfully',
+            match_score: match_score
         });
     } catch (error) {
         res.status(500).json({
@@ -313,6 +316,67 @@ exports.respondToRequest = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error responding to request',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+exports.getUserRequests = async (req, res) => {
+    try {
+        const receivedRequests = await SkillExchange.find({
+            user: req.user.id,
+            'matches.0': { $exists: true }
+        }).populate('matches.user', 'name email rating');
+
+        const sentRequests = await SkillExchange.find({
+            'matches.user': req.user.id
+        }).populate('user', 'name email rating');
+
+        const formattedReceivedRequests = receivedRequests.map(exchange => {
+            return {
+                exchangeId: exchange._id,
+                title: `Exchange listing: ${exchange.skills_offered.map(s => s.name).join(', ')}`,
+                requests: exchange.matches.map(match => ({
+                    requestId: match._id,
+                    from: match.user,
+                    status: match.exchange_request_status,
+                    date: match.createdAt || exchange.updatedAt
+                }))
+            };
+        });
+
+        const formattedSentRequests = sentRequests.map(exchange => {
+            const userRequest = exchange.matches.find(
+                match => match.user._id.toString() === req.user.id ||
+                    match.user.toString() === req.user.id
+            );
+
+            return {
+                exchangeId: exchange._id,
+                title: `Exchange listing by ${exchange.user.name}`,
+                skills_offered: exchange.skills_offered.map(s => s.name).join(', '),
+                skills_wanted: exchange.skills_wanted.map(s => s.name).join(', '),
+                match_score: userRequest ? userRequest.match_score : 0,
+                status: userRequest ? userRequest.exchange_request_status : 'unknown',
+                date: userRequest?.createdAt || exchange.updatedAt
+            };
+        });
+
+        res.status(200).json({
+            success: true,
+            count: {
+                received: formattedReceivedRequests.length,
+                sent: formattedSentRequests.length
+            },
+            data: {
+                received: formattedReceivedRequests,
+                sent: formattedSentRequests
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching exchange requests',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }

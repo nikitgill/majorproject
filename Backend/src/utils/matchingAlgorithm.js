@@ -1,4 +1,3 @@
-
 exports.findMatches = (listingToMatch, allExchanges) => {
     const matches = [];
 
@@ -23,6 +22,7 @@ exports.findMatches = (listingToMatch, allExchanges) => {
     return matches.sort((a, b) => b.match_score - a.match_score);
 };
 
+exports.calculateMatchScore = calculateMatchScore;
 
 function calculateMatchScore(listing1, listing2) {
     let score = 0;
@@ -48,7 +48,6 @@ function calculateMatchScore(listing1, listing2) {
     return Math.min(score, 100);
 }
 
-
 function calculateSkillMatchPercentage(offeredSkills, wantedSkills) {
     if (wantedSkills.length === 0) return 0;
 
@@ -70,7 +69,6 @@ function calculateSkillMatchPercentage(offeredSkills, wantedSkills) {
 
     return (matchCount / wantedSkills.length) * 100;
 }
-
 
 function countExactMatches(offered1, wanted2, offered2, wanted1) {
     let exactMatches = 0;

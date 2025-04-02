@@ -1,3 +1,7 @@
 node_modules/
 .env
 
+# postman collection files
+*.json
+# dotenv environment variable files
+*.env

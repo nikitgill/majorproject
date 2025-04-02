@@ -9,12 +9,15 @@ const {
     deleteExchange,
     findPotentialMatches,
     sendExchangeRequest,
-    respondToRequest
+    respondToRequest,
+    getUserRequests
 } = require('../controllers/exchangeController');
 
 router.route('/')
     .post(protect, createExchange)
     .get(protect, getAllExchanges);
+
+router.get('/requests/all', protect, getUserRequests);
 
 router.route('/:id')
     .get(protect, getExchange)
